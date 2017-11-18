@@ -143,11 +143,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Bytes.h" />
+    <ClInclude Include="Client.h" />
+    <ClInclude Include="PacketHeader.h" />
+    <ClInclude Include="Protocol.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Bytes.cpp" />
+    <ClCompile Include="Client.cpp" />
     <ClCompile Include="Client_TS.cpp" />
+    <ClCompile Include="Protocol.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
