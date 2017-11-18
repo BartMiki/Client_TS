@@ -5,6 +5,8 @@
 #include "Protocol.h"
 #include <WinSock2.h>
 #include <WS2tcpip.h>
+#include <thread>
+#include <mutex>
 
 #pragma comment(lib,"ws2_32.lib") 
 
@@ -24,7 +26,8 @@ private:
 	SOCKET connection;
 	SOCKADDR_IN addr; //Addres to bind connection socket to
 	int sizeOfAddr;
-
+	bool connectedToAnotherClient;
+	u_int64 id;
 	// --- methods ---
 	Protocol * recvProtocol();
 	bool processProtocol(Protocol * protocol);

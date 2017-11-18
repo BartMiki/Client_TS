@@ -7,7 +7,7 @@ enum class PacketHeader : char {
 	Invite = 0x12, // 0001 0010 - zaproszenie drugiego uzytkownika
 	InviteAccpet = 0x14, // 0001 0100 - drugi uzytkownik zaakceptowal zaproszenie
 	InviteDecline = 0x16, // 0001 0110 - drugi uzytkownik odrzucil zaproszenie
-	SendMessage = 0x20, // 0010 0000 - wiadomosc wyslana przez uzytkownika
+	Message = 0x20, // 0010 0000 - wiadomosc wyslana przez uzytkownika
 	Bye = 0x30, // 0011 0000 - uzytkownik konczy komunikacje z innym uzytkownikiem
 	Quit = 0x40 // 0100 0000 - uzytkownik odlacza sie od serwera
 };

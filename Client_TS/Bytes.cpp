@@ -46,7 +46,7 @@ void Bytes::push_bits(Byte _byte, size_t _size)
 	}
 }
 
-void Bytes::push_bytes(Bytes8 _bytes, size_t _size)
+void Bytes::push_bytes(Byte8 _bytes, size_t _sizeInBits)
 {
 	int byteSize = 8;
 	for (int i = 7; i >= 0; i--)
@@ -76,14 +76,14 @@ Byte Bytes::getBits(size_t _bitBeginIndex, size_t _byteIndex, size_t _bitNumber)
 	return result;
 }
 
-Bytes8 Bytes::getBytes8(size_t _byteBeginIndex, size_t _byteNumber, size_t _bitBeginIndex)
+Byte8 Bytes::getByte8(size_t _byteBeginIndex, size_t _numberOfBytes, size_t _bitBeginIndex)
 {
-	Bytes8 result;
+	Byte8 result;
 	Byte new8bits;
 	int byteSize = 8;
 	for (int i = 0; i < 8; i++)
 	{
-		new8bits = getBits(_bitBeginIndex, _byteBeginIndex + _byteNumber - 1 - i);
+		new8bits = getBits(_bitBeginIndex, _byteBeginIndex + _numberOfBytes - 1 - i);
 		for (int j = 7 + i*byteSize, k = 7; j >= 0 + i*byteSize; j--, k--) {
 			result[j] = new8bits[k];
 		}
@@ -91,11 +91,15 @@ Bytes8 Bytes::getBytes8(size_t _byteBeginIndex, size_t _byteNumber, size_t _bitB
 	return result;
 }
 
-vector<Byte> Bytes::getBytes(size_t _byteBeginIndex, size_t _byteNumber, size_t _bitBeginIndex)
+vector<Byte> Bytes::getBytes(size_t _byteBeginIndex, size_t _numberOfBytes, size_t _bitBeginIndex)
 {
 	vector<Byte> result;
 	Byte byte;
-	for (int i = 0; i < _byteNumber; i++)
+	if (_numberOfBytes<0 || _numberOfBytes > size)
+	{
+		_numberOfBytes = size;
+	}
+	for (int i = 0; i < _numberOfBytes; i++)
 	{
 		byte = getBits(_bitBeginIndex, _byteBeginIndex + i);
 		result.push_back(byte);

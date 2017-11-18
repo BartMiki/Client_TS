@@ -17,7 +17,8 @@ Client::Client(std::string IP, int PORT)
 	inet_pton(AF_INET, IP.c_str(), &(addr.sin_addr)); //Addres = local host (this PC)
 	addr.sin_port = htons(PORT); //Port ("htons" means "Host TO Network Short")
 	addr.sin_family = AF_INET; //IPv4 Socket
-
+	connectedToAnotherClient = false;
+	id = 0ll;
 	clientPtr = this;
 }
 
@@ -29,27 +30,28 @@ bool Client::Connect()
 	if (code != 0) //If connecting to server failed
 	{
 		code = WSAGetLastError();
-		std::string error = "Failed to connect, code: " + std::to_string(code);
+		std::string error = "Nie mozna polaczyc z serwerem, kod: " + std::to_string(code);
 		MessageBoxA(NULL, error.c_str(), "Error", MB_OK | MB_ICONERROR);
 		return false; //Failed to connect to server
 	}
 
 	//Succesful connection to server
-	std::cout << "Connected to server!" << std::endl;
+	std::cout << "Polaczono z serwerem!" << std::endl;
 
 	//Create client thread to handle upcomming messages
 	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)ClientThread, NULL, NULL, NULL);
-	return true;
+	return sendProtocol(new Protocol(PacketHeader::ServerRequestID));
 }
 
 bool Client::CloseConnection()
 {
+	sendProtocol(new Protocol(PacketHeader::Quit, 0, "", id));
 	if (closesocket(connection) == SOCKET_ERROR)
 	{
 		if (WSAGetLastError() == WSAENOTSOCK) //If socket error occured
 			return true; //Connection has been closed
 
-		std::string error = "Failed to close Socket, WinSock: "+std::to_string(WSAGetLastError())+".";
+		std::string error = "Nie mozna zamknac Gniazda: "+std::to_string(WSAGetLastError())+".";
 		MessageBoxA(NULL, error.c_str(), "Error", MB_OK | MB_ICONERROR);
 		return false; //Failed to close connection
 	}
@@ -59,40 +61,20 @@ bool Client::CloseConnection()
 Protocol * Client::recvProtocol()
 {
 	Protocol * protocol;
-	char * buffer = new char[9];
+	int bufferSize = 1500;
+	char * buffer = new char[bufferSize];
 	//recv packet header and data size
-	int check = recv(connection, buffer, 9, NULL);
+	int check = recv(connection, buffer, bufferSize, NULL);
 	if (check == SOCKET_ERROR)
 		return nullptr;
 
 	protocol = new Protocol(buffer, 9);
-	u_int64 dataSize = protocol->getDataSize();
-	PacketHeader packetHeader = protocol->getPacketHeader();
-	delete[] buffer;
+	int recvSize = protocol->getDataSize();
+	recvSize += 17;
 	delete protocol;
-	//if there is data field
-	if (dataSize > 0)
-	{
-		buffer = new char[dataSize];
-		//recv text message
-		check = recv(connection, buffer, dataSize, NULL);
-		if (check == SOCKET_ERROR)
-			return nullptr;
-	}
-	string data(buffer);
-	//recv client id
+
+	protocol = new Protocol(buffer, recvSize);
 	delete[] buffer;
-	buffer = new char[8];
-	u_int64 ID;
-
-	check = recv(connection, buffer, 8, NULL);
-	if (check == SOCKET_ERROR)
-		return nullptr;
-
-	Bytes bytes;
-	bytes.push_bytes(buffer, 8);
-	ID = bytes.getBytes8(0,0,0).to_ullong();
-	protocol = new Protocol(packetHeader, dataSize, data, ID);
 	return protocol;
 }
 
@@ -103,7 +85,11 @@ bool Client::sendProtocol(Protocol * protocol)
 	//Send string in strSize bytes
 	int check = send(connection, message, messageLenght, NULL);
 	if (check == SOCKET_ERROR) //If sending failed
+	{
+		delete protocol;
 		return false;
+	}
+	delete protocol;
 	return true;
 }
 
@@ -122,6 +108,11 @@ bool Client::processProtocol(Protocol * protocol)
 	}
 	switch (packetHeader)
 	{
+	case PacketHeader::ServerSendID
+	{
+		id = protocol->getID();
+		cout << "# Otrzymano identyfikator sesji od sewera: " << id << " #\n";
+	}
 	case PacketHeader::Invite:
 	{
 		Protocol * answer;
@@ -134,24 +125,38 @@ bool Client::processProtocol(Protocol * protocol)
 		{
 		case 'y':
 		case 'Y':
-			answer = new Protocol(PacketHeader::InviteAccpet, 0);
+			sendProtocol(new Protocol(PacketHeader::InviteAccpet, 0, "", id));
 			break;
 		default:
-			answer = new Protocol(PacketHeader::InviteDecline, 0);
+			sendProtocol(Protocol(PacketHeader::InviteDecline, 0, "", id));
 			break;
 		}
-		sendProtocol(answer);
-		delete answer;
-		break;
 	}
 	case PacketHeader::InviteAccpet:
 	{
-		cout << "Zaakceptowal zaproszenie";
+		cout << "# Uzytkownik zaakceptowal zaproszenie #\n";
+		connectedToAnotherClient = true;
 		break;
 	}
 	case PacketHeader::InviteDecline:
 	{
-		cout << "Odrzucil zaproszenie";
+		cout << "# Uzytkownik odrzucil zaproszenie #\n";
+		break;
+	}
+	case PacketHeader::Bye:
+	{
+		cout << "# Uzytkownik zakonczyl z Toba polaczenie #\n";
+		connectedToAnotherClient = false;
+		break;
+	}
+	case PacketHeader::Message:
+	{
+		cout << ">" << data << "\n";
+		break;
+	}
+	case PacketHeader::ServerAlone:
+	{
+		cout << "# Uzytkownik odlaczyl sie od serwera #\n";
 		break;
 	}
 	default:

@@ -21,7 +21,7 @@ Protocol::Protocol(char * received, int _size)
 {
 	packet.push_bytes(received, _size);
 	packetHeader = packet.getBits(0, 0, 7);
-	dataSize = packet.getBytes8(0, 8, 7); // take 8 bytes from 7 bit of 0 byte
+	dataSize = packet.getByte8(0, 8, 7); // take 8 bytes from 7 bit of 0 byte
 	if (dataSize.to_ullong() > 0)
 	{
 		data = getData();
@@ -30,13 +30,13 @@ Protocol::Protocol(char * received, int _size)
 	{
 		data = "";
 	}
+	id = packet.getByte8(_size - 9, 8, 7);
 }
 
-char * Protocol::getStringToSend(int & messageLenght)
+char * Protocol::getMessageToSend()
 {
-	//dataSize + headerSize(1) + dataSizeSize(8) 
-	messageLenght = dataSize.to_ullong() + 1 + 8;
-	vector<Byte> temp = packet.getBytes(0, messageLenght);
+	vector<Byte> temp = packet.getBytes();
+	int messageLenght = temp.size();
 	char * toSend = new char[messageLenght];
 	for (int i = 0; i < messageLenght; i++)
 	{
@@ -45,17 +45,19 @@ char * Protocol::getStringToSend(int & messageLenght)
 	return toSend;
 }
 
+int Protocol::getMessageSize()
+{
+	return packet.getSize();
+}
+
 PacketHeader Protocol::getPacketHeader()
 {
-	Byte _byte = packet.getBits(0, 0, 7);
-	PacketHeader result = static_cast<PacketHeader>(static_cast<char>(_byte.to_ullong()));
-	return result;
+	return static_cast<PacketHeader>(packetHeader.to_ulong());
 }
 
 u_int64 Protocol::getDataSize()
 {
-	Bytes8 result = packet.getBytes8(0, 8, 7);
-	return result.to_ullong();
+	return dataSize.to_ullong();
 }
 
 string Protocol::getData()
@@ -67,6 +69,11 @@ string Protocol::getData()
 		result += static_cast<char>(a.to_ullong());
 	}
 	return result;
+}
+
+u_int64 Protocol::getID()
+{
+	return id.to_ullong();
 }
 
 Protocol::~Protocol()
