@@ -19,7 +19,10 @@ Client::Client(std::string IP, int PORT)
 	addr.sin_family = AF_INET; //IPv4 Socket
 	connectedToAnotherClient = false;
 	id = 0ll;
+	havePendingInvite = false;
+	sendedInvite = false;
 	clientPtr = this;
+	connectedToServer = false;
 }
 
 bool Client::Connect()
@@ -37,7 +40,7 @@ bool Client::Connect()
 
 	//Succesful connection to server
 	std::cout << "Polaczono z serwerem!" << std::endl;
-
+	connectedToServer = true;
 	//Create client thread to handle upcomming messages
 	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)ClientThread, NULL, NULL, NULL);
 	return sendProtocol(new Protocol(PacketHeader::ServerRequestID));
@@ -49,13 +52,20 @@ bool Client::CloseConnection()
 	if (closesocket(connection) == SOCKET_ERROR)
 	{
 		if (WSAGetLastError() == WSAENOTSOCK) //If socket error occured
+		{
+			connectedToServer = false;
 			return true; //Connection has been closed
-
-		std::string error = "Nie mozna zamknac Gniazda: "+std::to_string(WSAGetLastError())+".";
-		MessageBoxA(NULL, error.c_str(), "Error", MB_OK | MB_ICONERROR);
+		}
+		cout << "# Wystapil blad: " << WSAGetLastError() << ". #\n";
 		return false; //Failed to close connection
 	}
+	connectedToServer = false;
 	return true;
+}
+
+u_int64 Client::getID()
+{
+	return id;
 }
 
 Protocol * Client::recvProtocol()
@@ -80,8 +90,8 @@ Protocol * Client::recvProtocol()
 
 bool Client::sendProtocol(Protocol * protocol)
 {
-	int messageLenght = 0;
-	char * message = protocol->getStringToSend(messageLenght);
+	char * message = protocol->getMessageToSend();
+	int messageLenght = protocol->getMessageSize();
 	//Send string in strSize bytes
 	int check = send(connection, message, messageLenght, NULL);
 	if (check == SOCKET_ERROR) //If sending failed
@@ -93,7 +103,6 @@ bool Client::sendProtocol(Protocol * protocol)
 	return true;
 }
 
-
 bool Client::processProtocol(Protocol * protocol)
 {
 	if (protocol == nullptr)
@@ -104,33 +113,22 @@ bool Client::processProtocol(Protocol * protocol)
 	string data = "";
 	if (dataSize > 0)
 	{
-		protocol->getData();
+		data = protocol->getData();
 	}
 	switch (packetHeader)
 	{
-	case PacketHeader::ServerSendID
+	case PacketHeader::ServerSendID:
 	{
 		id = protocol->getID();
+		Sleep(100);
 		cout << "# Otrzymano identyfikator sesji od sewera: " << id << " #\n";
+		break;
 	}
 	case PacketHeader::Invite:
 	{
-		Protocol * answer;
-		cout << "Zostales zaproszony do czatu. Wpisz:\n"
-			<< " y - by zaakceptowac zaproszenie,\n"
-			<< " n - by odrzucic zaproszenie.\n";
-		char choice;
-		cin >> choice;
-		switch (choice)
-		{
-		case 'y':
-		case 'Y':
-			sendProtocol(new Protocol(PacketHeader::InviteAccpet, 0, "", id));
-			break;
-		default:
-			sendProtocol(Protocol(PacketHeader::InviteDecline, 0, "", id));
-			break;
-		}
+		cout << "Zostales zaproszony do czatu. Mozesz teraz odpowiedziec na zaproszenie.\n";
+		havePendingInvite = true;
+		break;
 	}
 	case PacketHeader::InviteAccpet:
 	{
@@ -141,26 +139,32 @@ bool Client::processProtocol(Protocol * protocol)
 	case PacketHeader::InviteDecline:
 	{
 		cout << "# Uzytkownik odrzucil zaproszenie #\n";
+		sendedInvite = false;
+		connectedToAnotherClient = false;
 		break;
 	}
 	case PacketHeader::Bye:
 	{
 		cout << "# Uzytkownik zakonczyl z Toba polaczenie #\n";
 		connectedToAnotherClient = false;
+		sendedInvite = false;
 		break;
 	}
 	case PacketHeader::Message:
 	{
-		cout << ">" << data << "\n";
+		cout << "-----> " << data << " <----\n";
 		break;
 	}
 	case PacketHeader::ServerAlone:
 	{
 		cout << "# Uzytkownik odlaczyl sie od serwera #\n";
+		connectedToAnotherClient = false;
+		sendedInvite = false;
 		break;
 	}
 	default:
-		cout << "# Odebrano nieznany pakiet. #" << endl;
+		cout << "# Odebrano nieznany pakiet. #/n" << "Kod: ";
+		printf("%x./n", (char)packetHeader);
 		break;
 	}
 	return true;
@@ -178,12 +182,13 @@ void Client::ClientThread()
 			break; //Break infinite loop
 		delete protocol;
 	}
-	std::cout << "# Utracono polaczenie z serwerem. #" << std::endl;
-	if (clientPtr->CloseConnection()) {
-		std::cout << "# Poprawnie zamknieto gniazdo. #" << std::endl;
-	}
-	else
-	{
-		std::cout << "# Blad podczas zamykania gniazda. #" << std::endl;
-	}
+	//std::cout << "# Utracono polaczenie z serwerem. #" << std::endl;
+	clientPtr->CloseConnection();
+	clientPtr->connectedToServer = false;
+	//	std::cout << "# Poprawnie zamknieto gniazdo. #" << std::endl;
+	//}
+	//else
+	//{
+	//	std::cout << "# Blad podczas zamykania gniazda. #" << std::endl;
+	//}
 }

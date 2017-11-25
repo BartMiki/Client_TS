@@ -6,7 +6,6 @@
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 #include <thread>
-#include <mutex>
 
 #pragma comment(lib,"ws2_32.lib") 
 
@@ -17,16 +16,20 @@ public:
 	Client(std::string IP, int PORT);
 	bool Connect();
 	bool CloseConnection();
+	u_int64 getID();
 	// --- method send---
 	bool sendProtocol(Protocol * protocol);
+	bool connectedToAnotherClient;
+	bool havePendingInvite;
+	bool sendedInvite;
+	bool connectedToServer;
+	SOCKET connection;
 private:
 	// --- data fields ---
 	WSAData wsaData;
 	WORD DllVersion;
-	SOCKET connection;
 	SOCKADDR_IN addr; //Addres to bind connection socket to
 	int sizeOfAddr;
-	bool connectedToAnotherClient;
 	u_int64 id;
 	// --- methods ---
 	Protocol * recvProtocol();

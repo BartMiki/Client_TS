@@ -22,15 +22,18 @@ Protocol::Protocol(char * received, int _size)
 	packet.push_bytes(received, _size);
 	packetHeader = packet.getBits(0, 0, 7);
 	dataSize = packet.getByte8(0, 8, 7); // take 8 bytes from 7 bit of 0 byte
-	if (dataSize.to_ullong() > 0)
+	if (_size > 9)
 	{
-		data = getData();
+		if (dataSize.to_ullong() > 0) // tutaj jest problem
+		{
+			data = getData();
+		}
+		else
+		{
+			data = "";
+		}
+		id = packet.getByte8(_size - 9, 8, 7);
 	}
-	else
-	{
-		data = "";
-	}
-	id = packet.getByte8(_size - 9, 8, 7);
 }
 
 char * Protocol::getMessageToSend()
